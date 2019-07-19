@@ -1,6 +1,5 @@
 /*
 TODO:
-3.  Clean up this code
 4.  Set title
 ------
 5.  When i click on an image, I want to see the larger image in a sort of transparent overlay
@@ -10,9 +9,22 @@ TODO:
 When we get to 1000 images delete 10%
  */
 
+/*
+Next:
+Load images into thier own calss
+Create image widget from this class
+*/
+
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:random_string/random_string.dart';
+
+class ImageResult {
+  final String id;
+  final Image image;
+
+  const ImageResult({this.id, this.image});
+}
 
 void main() => runApp(MyApp());
 
@@ -37,11 +49,9 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePage extends State<MyHomePage> {
   List<String> dogImages = List<String>();
-  //ScrollController _scrollController = new ScrollController();
   ScrollController _gridScrollController = new ScrollController();
   @override
   void dispose() {
-    //_scrollController.dispose();
     _gridScrollController.dispose();
     super.dispose();
   }
@@ -51,12 +61,6 @@ class _MyHomePage extends State<MyHomePage> {
     super.initState();
 
     rollFive().then((x) {
-      //bool hasEnough = rouletteImages.length >= 50;
-      //while (!hasEnough) {
-      //print('only has ${rouletteImages.length}, rolling again');
-      //rollFive();
-      //hasEnough = rouletteImages.length >= 50;
-      //}
       if (rouletteImages.length < 50) {
         print('less than 25, rolling again');
         rollFive();
@@ -64,24 +68,11 @@ class _MyHomePage extends State<MyHomePage> {
     });
 
     _gridScrollController.addListener(() {
-      if (_gridScrollController.position.pixels ==
-          _gridScrollController.position.maxScrollExtent) {
+      if (_gridScrollController.position.pixels == _gridScrollController.position.maxScrollExtent) {
         print('rolling');
         rollFive();
       }
     });
-//
-//    _scrollController.addListener(() {
-//      print(_scrollController.position.pixels);
-//      print(_scrollController.position.maxScrollExtent);
-//      if (_scrollController.position.pixels ==
-//          _scrollController.position.maxScrollExtent) {
-//        print('rolling');
-//        rollFive();
-//      }
-//    });
-
-    //fetchFive();
   }
 
   @override
@@ -94,93 +85,43 @@ class _MyHomePage extends State<MyHomePage> {
         body: Column(
           children: [
             Expanded(
-                child: GridView.builder(
-                    itemCount: this.rouletteImages.length,
-                    controller: _gridScrollController,
-                    gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
-                      maxCrossAxisExtent: 120,
-                      mainAxisSpacing: 5,
-                      crossAxisSpacing: 5,
+              child: GridView.builder(
+                itemCount: this.rouletteImages.length,
+                controller: _gridScrollController,
+                gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+                  maxCrossAxisExtent: 120,
+                  mainAxisSpacing: 5,
+                  crossAxisSpacing: 5,
+                ),
+                padding: const EdgeInsets.all(5),
+                itemBuilder: (context, index) {
+                  return Container(
+                    constraints: BoxConstraints.tightFor(height: 90),
+                    child: FutureBuilder<Widget>(
+                      future: rouletteImages[index],
+                      builder: (cx, snapshot) {
+                        if (snapshot.hasData) {
+                          return snapshot.data;
+                        } else {
+                          return Text('NO DATA');
+                        }
+                      },
                     ),
-                    padding: const EdgeInsets.all(5),
-                    itemBuilder: (context, index) {
-                      return Container(
-                        constraints: BoxConstraints.tightFor(height: 90),
-                        child: FutureBuilder<Widget>(
-                            future: rouletteImages[index],
-                            builder: (cx, snapshot) {
-                              if (snapshot.hasData) {
-                                return snapshot.data;
-                              } else {
-                                return Text('NO DATA');
-                              }
-                            }),
-                      );
-                    })),
-            //GridView.extent(
-            //  maxCrossAxisExtent: 120,
-            //  children: <Widget>[],
-            //),
-//            Expanded(
-//              child: ListView.builder(
-//                controller: _scrollController,
-//                itemCount: this.rouletteImages.length,
-//                itemBuilder: (context, index) {
-//                  return Container(
-//                    constraints: BoxConstraints.tightFor(height: 90),
-//                    child: FutureBuilder<Widget>(
-//                        future: rouletteImages[index],
-//                        builder: (cx, snapshot) {
-//                          if (snapshot.hasData) {
-//                            return snapshot.data;
-//                          } else {
-//                            return Text('NO DATA');
-//                          }
-//                        }),
-//                  );
-//                },
-//              ),
-//            ),
-//            FutureBuilder<Widget>(
-//              future: getImage(),
-//              builder: (cx, snapshot) {
-//                if (snapshot.hasData) {
-//                  print('has data');
-//                  return snapshot.data;
-//                } else {
-//                  print('no data');
-//                  return Text('loading...');
-//                }
-//              },
-//            ),
-//            Expanded(
-//              child: ListView.builder(
-//                controller: _scrollController,
-//                itemCount: dogImages.length,
-//                itemBuilder: (BuildContext context, int index) {
-//                  return Container(
-//                    constraints: BoxConstraints.tightFor(height: 200),
-//                    child: Image.network(
-//                      dogImages[index],
-//                      fit: BoxFit.fitWidth,
-//                    ),
-//                  );
-//                },
-//              ),
-//            ),
+                  );
+                },
+              ),
+            ),
           ],
         ),
       ),
     );
   }
 
+  List<Future<ImageResult>> loadedImages = [];
   List<Future<Widget>> rouletteImages = List<Future<Widget>>();
 
+  // TODO:  rename
   Future rollFive() async {
-    //var i = 0;
-//    while (rouletteImages.length < 25) {
-//      await getImage();
-//    }
     for (var i = 0; i < 100; i++) {
       getImage();
     }
@@ -220,111 +161,9 @@ class _MyHomePage extends State<MyHomePage> {
           rouletteImages.add(completer.future);
         });
       }
-
-//      if (info.image.width != 20 && info.image.height != 160) {
-//        completer.complete(Container(child: Image(image: image)));
-//
-//        setState(() {
-//          rouletteImages.add(completer.future);
-//        });
-//      } else {
-//        completer.complete(Container(child: Text('AZAZA')));
-//      }
     });
 
     load.addListener(listener);
     return completer.future;
   }
-
-//  fetch() async {
-//    final response = await http.get('https://dog.ceo/api/breeds/image/random');
-//    if (response.statusCode == 200) {
-//      await getImage();
-//      var url = json.decode(response.body)['message'];
-//      print(url);
-//      setState(() {
-//        dogImages.add(url);
-//      });
-//    } else {
-//      throw Exception("ohno");
-//    }
-//  }
-
-//  fetchFive() {
-//    for (var x = 0; x < 10; x++) {
-//      fetch();
-//      print('fetched $x');
-//    }
-//  }
 }
-
-/// This Widget is the main application widget.
-//class MyApp extends StatelessWidget {
-//  static const String _title = 'Flutter Code Sample';
-//
-//  @override
-//  Widget build(BuildContext context) {
-//    return MaterialApp(
-//      title: _title,
-//      home: MyStatelessWidget(),
-//    );
-//  }
-//}
-//
-//final GlobalKey<ScaffoldState> scaffoldKey = GlobalKey<ScaffoldState>();
-//final SnackBar snackBar = const SnackBar(content: Text('Showing Snackbar'));
-//
-//void openPage(BuildContext context) {
-//  Navigator.push(context, MaterialPageRoute(
-//    builder: (BuildContext context) {
-//      return Scaffold(
-//        appBar: AppBar(
-//          title: const Text('Next page'),
-//        ),
-//        body: const Center(
-//          child: Text(
-//            'This is the next page',
-//            style: TextStyle(fontSize: 24),
-//          ),
-//        ),
-//      );
-//    },
-//  ));
-//}
-//
-///// This is the stateless widget that the main application instantiates.
-//class MyStatelessWidget extends StatelessWidget {
-//  MyStatelessWidget({Key key}) : super(key: key);
-//
-//  @override
-//  Widget build(BuildContext context) {
-//    return Scaffold(
-//      key: scaffoldKey,
-//      appBar: AppBar(
-//        title: const Text('AppBar Demo'),
-//        actions: <Widget>[
-//          IconButton(
-//            icon: const Icon(Icons.add_alert),
-//            tooltip: 'Show Snackbar',
-//            onPressed: () {
-//              scaffoldKey.currentState.showSnackBar(snackBar);
-//            },
-//          ),
-//          IconButton(
-//            icon: const Icon(Icons.navigate_next),
-//            tooltip: 'Next page',
-//            onPressed: () {
-//              openPage(context);
-//            },
-//          ),
-//        ],
-//      ),
-//      body: const Center(
-//        child: Text(
-//          'This is the home page',
-//          style: TextStyle(fontSize: 24),
-//        ),
-//      ),
-//    );
-//  }
-//}
