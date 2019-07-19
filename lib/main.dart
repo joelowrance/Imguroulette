@@ -1,7 +1,17 @@
+/*
+TODO:
+3.  Clean up this code
+4.  Set title
+------
+5.  When i click on an image, I want to see the larger image in a sort of transparent overlay
+6.  I want to be able to dismiss the overlay
+7.  Replace no data with spinny thing
+-------
+When we get to 1000 images delete 10%
+ */
+
 import 'package:flutter/material.dart';
-import 'dart:convert';
 import 'dart:async';
-import 'package:http/http.dart' as http;
 import 'package:random_string/random_string.dart';
 
 void main() => runApp(MyApp());
@@ -27,11 +37,12 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePage extends State<MyHomePage> {
   List<String> dogImages = List<String>();
-  ScrollController _scrollController = new ScrollController();
-
+  //ScrollController _scrollController = new ScrollController();
+  ScrollController _gridScrollController = new ScrollController();
   @override
   void dispose() {
-    _scrollController.dispose();
+    //_scrollController.dispose();
+    _gridScrollController.dispose();
     super.dispose();
   }
 
@@ -40,19 +51,35 @@ class _MyHomePage extends State<MyHomePage> {
     super.initState();
 
     rollFive().then((x) {
-      if (rouletteImages.length < 25) {
+      //bool hasEnough = rouletteImages.length >= 50;
+      //while (!hasEnough) {
+      //print('only has ${rouletteImages.length}, rolling again');
+      //rollFive();
+      //hasEnough = rouletteImages.length >= 50;
+      //}
+      if (rouletteImages.length < 50) {
         print('less than 25, rolling again');
         rollFive();
       }
     });
 
-    _scrollController.addListener(() {
-      if (_scrollController.position.pixels ==
-          _scrollController.position.maxScrollExtent) {
+    _gridScrollController.addListener(() {
+      if (_gridScrollController.position.pixels ==
+          _gridScrollController.position.maxScrollExtent) {
         print('rolling');
         rollFive();
       }
     });
+//
+//    _scrollController.addListener(() {
+//      print(_scrollController.position.pixels);
+//      print(_scrollController.position.maxScrollExtent);
+//      if (_scrollController.position.pixels ==
+//          _scrollController.position.maxScrollExtent) {
+//        print('rolling');
+//        rollFive();
+//      }
+//    });
 
     //fetchFive();
   }
@@ -67,25 +94,53 @@ class _MyHomePage extends State<MyHomePage> {
         body: Column(
           children: [
             Expanded(
-              child: ListView.builder(
-                controller: _scrollController,
-                itemCount: this.rouletteImages.length,
-                itemBuilder: (context, index) {
-                  return Container(
-                    constraints: BoxConstraints.tightFor(height: 90),
-                    child: FutureBuilder<Widget>(
-                        future: rouletteImages[index],
-                        builder: (cx, snapshot) {
-                          if (snapshot.hasData) {
-                            return snapshot.data;
-                          } else {
-                            return Text('NO DATA');
-                          }
-                        }),
-                  );
-                },
-              ),
-            ),
+                child: GridView.builder(
+                    itemCount: this.rouletteImages.length,
+                    controller: _gridScrollController,
+                    gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+                      maxCrossAxisExtent: 120,
+                      mainAxisSpacing: 5,
+                      crossAxisSpacing: 5,
+                    ),
+                    padding: const EdgeInsets.all(5),
+                    itemBuilder: (context, index) {
+                      return Container(
+                        constraints: BoxConstraints.tightFor(height: 90),
+                        child: FutureBuilder<Widget>(
+                            future: rouletteImages[index],
+                            builder: (cx, snapshot) {
+                              if (snapshot.hasData) {
+                                return snapshot.data;
+                              } else {
+                                return Text('NO DATA');
+                              }
+                            }),
+                      );
+                    })),
+            //GridView.extent(
+            //  maxCrossAxisExtent: 120,
+            //  children: <Widget>[],
+            //),
+//            Expanded(
+//              child: ListView.builder(
+//                controller: _scrollController,
+//                itemCount: this.rouletteImages.length,
+//                itemBuilder: (context, index) {
+//                  return Container(
+//                    constraints: BoxConstraints.tightFor(height: 90),
+//                    child: FutureBuilder<Widget>(
+//                        future: rouletteImages[index],
+//                        builder: (cx, snapshot) {
+//                          if (snapshot.hasData) {
+//                            return snapshot.data;
+//                          } else {
+//                            return Text('NO DATA');
+//                          }
+//                        }),
+//                  );
+//                },
+//              ),
+//            ),
 //            FutureBuilder<Widget>(
 //              future: getImage(),
 //              builder: (cx, snapshot) {
@@ -126,7 +181,7 @@ class _MyHomePage extends State<MyHomePage> {
 //    while (rouletteImages.length < 25) {
 //      await getImage();
 //    }
-    for (var i = 0; i < 25; i++) {
+    for (var i = 0; i < 100; i++) {
       getImage();
     }
   }
@@ -158,7 +213,7 @@ class _MyHomePage extends State<MyHomePage> {
             image: image,
             height: 90,
             width: 90,
-            fit: BoxFit.scaleDown,
+            fit: BoxFit.cover,
           )),
         );
         setState(() {
