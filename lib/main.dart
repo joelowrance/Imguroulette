@@ -1,10 +1,9 @@
 /*
 TODO:
-4.  Set title
-5.  When swipe left, i want to see the next image
-6.  when swipe right, i want to see the previous image
 7.  when i click the close button (top) i want to go back to the list
 6.  I want to be able to dismiss the overlay
+8.  fix that annoying red background with a wait
+
 when i pull down i want to refresh my image list
 when i reach 1000 images, the next load will reload and take me to the top of the gird
 while i am swiping images, i want the grid to match the image i am looking at when i dismiss the overlay
@@ -21,6 +20,72 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:random_string/random_string.dart';
 
+class ImageService {
+  final List<Future<ImageResult>> _rouletteImages = [];
+
+  int imageCount() {
+    return _rouletteImages.length;
+  }
+
+  Future<ImageResult> getImage(int index) {
+    return _rouletteImages[index];
+  }
+
+  String thumbnailUrl(String id) {
+    return 'https://i.imgur.com/${id}s.jpg';
+  }
+
+  String mainUrl(String id) {
+    return 'https://i.imgur.com/$id.png';
+  }
+
+  Future initialRoll() async {
+    this.loadThumbnails(count: 100).then((value) async {
+      if (_rouletteImages.length < 50) {
+        await loadThumbnails();
+      }
+    });
+  }
+
+  Future loadThumbnails({int count = 50}) async {
+    for (var i = 0; i < 100; i++) {
+      _getImage();
+    }
+  }
+
+  Future<ImageResult> _getImage() async {
+    final Completer<ImageResult> completer = Completer();
+
+    var randomId = randomAlphaNumeric(5); //TODO:  let's also try some 7
+    var url = 'https://i.imgur.com/${randomId}s.jpg';
+    var image = new NetworkImage(url);
+    var config = await image.obtainKey(new ImageConfiguration());
+    var load = image.load(config);
+
+    var listener = new ImageStreamListener((ImageInfo info, isSync) async {
+      print(info.image.width);
+      print(info.image.height);
+
+      if ((info.image.width == 198 && info.image.height == 160) ||
+          (info.image.width == 161 && info.image.height == 81)) {
+        //do nothing, except fix this code
+        print('bad image');
+        //completer.complete(Container(child: Text('AZAZA')));
+        //rouletteImages.add(completer.future);
+      } else {
+        print('ok image');
+        completer.complete(ImageResult(id: randomId, image: image));
+        //setState(() {
+        _rouletteImages.add(completer.future);
+        //});
+      }
+    });
+
+    load.addListener(listener);
+    return completer.future;
+  }
+}
+
 class ImageResult {
   final String id;
   final NetworkImage image;
@@ -29,6 +94,8 @@ class ImageResult {
 }
 
 void main() => runApp(MyApp());
+
+ImageService imageService = new ImageService();
 
 class MyApp extends StatelessWidget {
   @override
@@ -44,7 +111,7 @@ class MyApp extends StatelessWidget {
 }
 
 class MyHomePage extends StatefulWidget {
-  String title = 'Is this it!?';
+  final String title = 'Seattle Splat';
   @override
   _MyHomePage createState() => _MyHomePage();
 }
@@ -61,19 +128,22 @@ class _MyHomePage extends State<MyHomePage> {
   @override
   void initState() {
     super.initState();
+    imageService.initialRoll();
+    setState(() {});
 
-    rollFive().then((x) {
-      if (rouletteImages2.length < 50) {
-        print('less than 25, rolling again');
-        rollFive();
-      }
-    });
+//    rollFive().then((x) {
+//      if (rouletteImages2.length < 50) {
+//        print('less than 25, rolling again');
+//        rollFive();
+//      }
+//    });
 
     _gridScrollController.addListener(() {
       if (_gridScrollController.position.pixels ==
           _gridScrollController.position.maxScrollExtent) {
         print('rolling');
-        rollFive();
+        imageService.loadThumbnails();
+        setState(() {});
       }
     });
   }
@@ -89,7 +159,7 @@ class _MyHomePage extends State<MyHomePage> {
           children: [
             Expanded(
               child: GridView.builder(
-                itemCount: this.rouletteImages2.length,
+                itemCount: imageService.imageCount(),
                 controller: _gridScrollController,
                 gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
                   maxCrossAxisExtent: 120,
@@ -101,7 +171,7 @@ class _MyHomePage extends State<MyHomePage> {
                   return Container(
                     constraints: BoxConstraints.tightFor(height: 90),
                     child: FutureBuilder<ImageResult>(
-                      future: rouletteImages2[index],
+                      future: imageService.getImage(index),
                       builder: (cx, snapshot) {
                         if (snapshot.hasData) {
                           return Container(
@@ -111,8 +181,10 @@ class _MyHomePage extends State<MyHomePage> {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (cx) =>
-                                        ImageViewer(imageId: snapshot.data.id),
+                                    builder: (cx) => ImageView(
+                                      imageId: snapshot.data.id,
+                                      index: index,
+                                    ),
                                   ),
                                 );
                               },
@@ -139,18 +211,18 @@ class _MyHomePage extends State<MyHomePage> {
     );
   }
 
-  List<Future<ImageResult>> rouletteImages2 = [];
+  //List<Future<ImageResult>> rouletteImages2 = [];
   //List<Future<Image>> rouletteImages = [];
 
   // TODO:  rename
-  Future rollFive() async {
-    for (var i = 0; i < 100; i++) {
-      getImage2();
-    }
-  }
+//  Future rollFive() async {
+//    for (var i = 0; i < 100; i++) {
+//      getImage2();
+//    }
+//  }
 
-//  Future<Widget> getImage() async {
-//    final Completer<Widget> completer = Completer();
+//  Future<ImageResult> getImage2() async {
+//    final Completer<ImageResult> completer = Completer();
 //
 //    var randomId = randomAlphaNumeric(5);
 //    var url = 'https://i.imgur.com/${randomId}s.jpg';
@@ -170,17 +242,9 @@ class _MyHomePage extends State<MyHomePage> {
 //        //rouletteImages.add(completer.future);
 //      } else {
 //        print('ok image');
-//        completer.complete(
-//          Container(
-//              child: Image(
-//            image: image,
-//            height: 90,
-//            width: 90,
-//            fit: BoxFit.cover,
-//          )),
-//        );
+//        completer.complete(ImageResult(id: randomId, image: image));
 //        setState(() {
-//          rouletteImages.add(completer.future);
+//          rouletteImages2.add(completer.future);
 //        });
 //      }
 //    });
@@ -188,48 +252,31 @@ class _MyHomePage extends State<MyHomePage> {
 //    load.addListener(listener);
 //    return completer.future;
 //  }
-
-  Future<ImageResult> getImage2() async {
-    final Completer<ImageResult> completer = Completer();
-
-    var randomId = randomAlphaNumeric(5);
-    var url = 'https://i.imgur.com/${randomId}s.jpg';
-    var image = new NetworkImage(url);
-    var config = await image.obtainKey(new ImageConfiguration());
-    var load = image.load(config);
-
-    var listener = new ImageStreamListener((ImageInfo info, isSync) async {
-      print(info.image.width);
-      print(info.image.height);
-
-      if ((info.image.width == 198 && info.image.height == 160) ||
-          (info.image.width == 161 && info.image.height == 81)) {
-        //do nothing, except fix this code
-        print('bad image');
-        //completer.complete(Container(child: Text('AZAZA')));
-        //rouletteImages.add(completer.future);
-      } else {
-        print('ok image');
-        completer.complete(ImageResult(id: randomId, image: image));
-        setState(() {
-          rouletteImages2.add(completer.future);
-        });
-      }
-    });
-
-    load.addListener(listener);
-    return completer.future;
-  }
 }
 
-class ImageViewer extends StatelessWidget {
+class ImageView extends StatefulWidget {
   final String imageId;
+  final int index;
 
-  ImageViewer({Key key, @required this.imageId}) : super(key: key);
+  ImageView({this.imageId, this.index});
+
+  @override
+  _ImageViewState createState() => _ImageViewState(imageId, index);
+}
+
+class _ImageViewState extends State<ImageView> {
+  String imageId;
+  int index;
+  String url = "";
+
+  _ImageViewState(this.imageId, this.index) {
+    url = imageService.mainUrl(imageId);
+  }
 
   @override
   Widget build(BuildContext context) {
     print('https://i.imgur.com/$imageId/.png');
+    //String url = imageService.mainUrl(imageId);
     return SafeArea(
       child: Dismissible(
         background: Container(color: Colors.red),
@@ -237,17 +284,125 @@ class ImageViewer extends StatelessWidget {
         confirmDismiss: (DismissDirection direction) {
           //not left on last image
           //not right on first image
-          return Future.value(true);
+
+          Future<ImageResult> image;
+          int nextIndex;
+          if (direction == DismissDirection.startToEnd) {
+            nextIndex = index - 1;
+            print('next index minus $nextIndex');
+          }
+          //forward
+          if (direction == DismissDirection.endToStart) {
+            nextIndex = index + 1;
+            print('next index plus $nextIndex');
+          }
+
+          image = imageService.getImage(nextIndex);
+
+          image.then((result) {
+            setState(() {
+              imageId = result.id;
+              index = nextIndex;
+              url = imageService.mainUrl(result.id);
+            });
+          });
+
+          return Future.value(false);
         },
         onDismissed: (DismissDirection direction) {
-          print(direction.toString());
+          print('on dismissed $direction');
+          //back
+//          Future<ImageResult> image;
+//          int nextIndex;
+//          if (direction == DismissDirection.startToEnd) {
+//            nextIndex = index - 1;
+//          }
+//          //forward
+//          if (direction == DismissDirection.endToStart) {
+//            image = imageService.getImage(nextIndex);
+//          }
+//
+//          image.then((result) {
+//            setState(() {
+//              imageId = result.id;
+//              index = nextIndex;
+//              url = imageService.mainUrl(result.id);
+//            });
+//          });
+//
+////          Navigator.push(
+//              context,
+//              MaterialPageRoute(
+//              builder: (cx) => ImageViewer(
+//            imageId: snapshot.data.id,
+//            index: index,
+//          ),
+//          ),
+
+          //print(direction.toString());
         },
         child: Container(
-          child:
-              Center(child: Image.network('https://i.imgur.com/$imageId.png')),
+          child: Center(
+            child: Image.network(url),
+          ),
           padding: EdgeInsets.all(10),
         ),
       ),
     );
   }
 }
+//
+//class ImageViewer extends StatelessWidget {
+//  final String imageId;
+//  final int index;
+//
+//  ImageViewer({Key key, @required this.imageId, this.index}) : super(key: key);
+//
+//  @override
+//  Widget build(BuildContext context) {
+//    print('https://i.imgur.com/$imageId/.png');
+//    String url = imageService.mainUrl(imageId);
+//    return SafeArea(
+//      child: Dismissible(
+//        background: Container(color: Colors.red),
+//        key: Key(imageId),
+//        confirmDismiss: (DismissDirection direction) {
+//          //not left on last image
+//          //not right on first image
+//
+//          return Future.value(false);
+//        },
+//        onDismissed: (DismissDirection direction) {
+//          //back
+//          //Future<ImageResult> image;
+//          int nextIndex;
+//          if (direction == DismissDirection.startToEnd) {
+//            nextIndex = index - 1;
+//          }
+//          //forward
+//          if (direction == DismissDirection.endToStart) {
+//            nextIndex = index + 1;
+//            //image = imageService.getImage(nextIndex);
+//          }
+//
+////          Navigator.push(
+////              context,
+////              MaterialPageRoute(
+////              builder: (cx) => ImageViewer(
+////            imageId: snapshot.data.id,
+////            index: index,
+////          ),
+////          ),
+//
+//          print(direction.toString());
+//        },
+//        child: Container(
+//          child: Center(
+//            child: Image.network(url),
+//          ),
+//          padding: EdgeInsets.all(10),
+//        ),
+//      ),
+//    );
+//  }
+//}
