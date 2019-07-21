@@ -2,7 +2,7 @@
 TODO:
 7.  when i click the close button (top) i want to go back to the list
 6.  I want to be able to dismiss the overlay
-8.  fix that annoying red background with a wait
+8.  fix that black background with a wait
 
 when i pull down i want to refresh my image list
 when i reach 1000 images, the next load will reload and take me to the top of the gird
@@ -31,6 +31,15 @@ class ImageService {
     return _rouletteImages[index];
   }
 
+  Future<ImageResult> getNextImage(int index) async {
+    if (index >= _rouletteImages.length) {
+      return _rouletteImages[index];
+    } else {
+      await loadThumbnails();
+      return _rouletteImages[index];
+    }
+  }
+
   String thumbnailUrl(String id) {
     return 'https://i.imgur.com/${id}s.jpg';
   }
@@ -46,6 +55,9 @@ class ImageService {
       }
     });
   }
+
+  //TODO:  this is a dirty hack
+  Function setState = () {};
 
   Future loadThumbnails({int count = 50}) async {
     for (var i = 0; i < 100; i++) {
@@ -75,9 +87,9 @@ class ImageService {
       } else {
         print('ok image');
         completer.complete(ImageResult(id: randomId, image: image));
-        //setState(() {
-        _rouletteImages.add(completer.future);
-        //});
+        setState(() {
+          _rouletteImages.add(completer.future);
+        });
       }
     });
 
@@ -128,6 +140,7 @@ class _MyHomePage extends State<MyHomePage> {
   @override
   void initState() {
     super.initState();
+    imageService.setState = this.setState;
     imageService.initialRoll();
     setState(() {});
 
@@ -279,7 +292,7 @@ class _ImageViewState extends State<ImageView> {
     //String url = imageService.mainUrl(imageId);
     return SafeArea(
       child: Dismissible(
-        background: Container(color: Colors.red),
+        background: Container(color: Colors.black),
         key: Key(imageId),
         confirmDismiss: (DismissDirection direction) {
           //not left on last image
@@ -297,7 +310,7 @@ class _ImageViewState extends State<ImageView> {
             print('next index plus $nextIndex');
           }
 
-          image = imageService.getImage(nextIndex);
+          image = imageService.getNextImage(nextIndex);
 
           image.then((result) {
             setState(() {
