@@ -1,7 +1,6 @@
 /*
 TODO:
 7.  when i click the close button (top) i want to go back to the list
-6.  I want to be able to dismiss the overlay
 
 when i pull down i want to refresh my image list
 when i reach 1000 images, the next load will reload and take me to the top of the gird
@@ -115,6 +114,12 @@ class ImageService {
     load.addListener(listener);
     return completer.future;
   }
+
+  Future<void> reset() async {
+    setState(_rouletteImages.clear());
+
+    initialRoll();
+  }
 }
 
 class ImageResult {
@@ -182,12 +187,27 @@ class _MyHomePage extends State<MyHomePage> {
     });
   }
 
+  Future<void> _refreshStockPrices() async {
+    setState(() {
+      imageService._rouletteImages.clear();
+    });
+
+    imageService.initialRoll();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Material(
       child: Scaffold(
         appBar: AppBar(
-          title: Text(widget.title),
+          title: GestureDetector(
+            child: Container(
+              child: Text(widget.title),
+              width: double.infinity,
+            ),
+            onDoubleTap: () => _gridScrollController.animateTo(0,
+                duration: Duration(milliseconds: 750), curve: Curves.easeIn),
+          ),
         ),
         body: Column(
           children: [
@@ -195,51 +215,54 @@ class _MyHomePage extends State<MyHomePage> {
               '${imageService.loadingCount.toString()} - ${imageService._rouletteImages.length}',
             ),
             Expanded(
-              child: GridView.builder(
-                itemCount: imageService.imageCount(),
-                controller: _gridScrollController,
-                gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
-                  maxCrossAxisExtent: 120,
-                  mainAxisSpacing: 5,
-                  crossAxisSpacing: 5,
-                ),
-                padding: const EdgeInsets.all(5),
-                itemBuilder: (context, index) {
-                  return Container(
-                    constraints: BoxConstraints.tightFor(height: 90),
-                    child: FutureBuilder<ImageResult>(
-                      future: imageService.getImage(index),
-                      builder: (cx, snapshot) {
-                        if (snapshot.hasData) {
-                          return Container(
-                            child: GestureDetector(
-                              onTap: () {
-                                print('tappity: ${snapshot.data.id}');
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (cx) => ImageView(
-                                      imageId: snapshot.data.id,
-                                      index: index,
+              child: RefreshIndicator(
+                onRefresh: _refreshStockPrices,
+                child: GridView.builder(
+                  itemCount: imageService.imageCount(),
+                  controller: _gridScrollController,
+                  gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+                    maxCrossAxisExtent: 120,
+                    mainAxisSpacing: 5,
+                    crossAxisSpacing: 5,
+                  ),
+                  padding: const EdgeInsets.all(5),
+                  itemBuilder: (context, index) {
+                    return Container(
+                      constraints: BoxConstraints.tightFor(height: 90),
+                      child: FutureBuilder<ImageResult>(
+                        future: imageService.getImage(index),
+                        builder: (cx, snapshot) {
+                          if (snapshot.hasData) {
+                            return Container(
+                              child: GestureDetector(
+                                onTap: () {
+                                  print('tappity: ${snapshot.data.id}');
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (cx) => ImageView(
+                                        imageId: snapshot.data.id,
+                                        index: index,
+                                      ),
                                     ),
-                                  ),
-                                );
-                              },
-                              child: Image(
-                                image: snapshot.data.image,
-                                height: 90,
-                                width: 90,
-                                fit: BoxFit.cover,
+                                  );
+                                },
+                                child: Image(
+                                  image: snapshot.data.image,
+                                  height: 90,
+                                  width: 90,
+                                  fit: BoxFit.cover,
+                                ),
                               ),
-                            ),
-                          );
-                        } else {
-                          return Text('NO DATA');
-                        }
-                      },
-                    ),
-                  );
-                },
+                            );
+                          } else {
+                            return Text('NO DATA');
+                          }
+                        },
+                      ),
+                    );
+                  },
+                ),
               ),
             ),
           ],
@@ -247,48 +270,6 @@ class _MyHomePage extends State<MyHomePage> {
       ),
     );
   }
-
-  //List<Future<ImageResult>> rouletteImages2 = [];
-  //List<Future<Image>> rouletteImages = [];
-
-  // TODO:  rename
-//  Future rollFive() async {
-//    for (var i = 0; i < 100; i++) {
-//      getImage2();
-//    }
-//  }
-
-//  Future<ImageResult> getImage2() async {
-//    final Completer<ImageResult> completer = Completer();
-//
-//    var randomId = randomAlphaNumeric(5);
-//    var url = 'https://i.imgur.com/${randomId}s.jpg';
-//    var image = new NetworkImage(url);
-//    var config = await image.obtainKey(new ImageConfiguration());
-//    var load = image.load(config);
-//
-//    var listener = new ImageStreamListener((ImageInfo info, isSync) async {
-//      print(info.image.width);
-//      print(info.image.height);
-//
-//      if ((info.image.width == 198 && info.image.height == 160) ||
-//          (info.image.width == 161 && info.image.height == 81)) {
-//        //do nothing, except fix this code
-//        print('bad image');
-//        //completer.complete(Container(child: Text('AZAZA')));
-//        //rouletteImages.add(completer.future);
-//      } else {
-//        print('ok image');
-//        completer.complete(ImageResult(id: randomId, image: image));
-//        setState(() {
-//          rouletteImages2.add(completer.future);
-//        });
-//      }
-//    });
-//
-//    load.addListener(listener);
-//    return completer.future;
-//  }
 }
 
 class ImageView extends StatefulWidget {
@@ -314,8 +295,18 @@ class _ImageViewState extends State<ImageView> {
   Widget build(BuildContext context) {
     print('https://i.imgur.com/$imageId/.png');
     //String url = imageService.mainUrl(imageId);
-    return SafeArea(
-      child: Dismissible(
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('View Image'),
+        actions: <Widget>[
+          IconButton(
+            icon: Icon(Icons.close),
+            onPressed: () => Navigator.of(context).pop(null),
+          )
+        ],
+        leading: Container(),
+      ),
+      body: Dismissible(
         background: Container(color: Colors.black),
         key: Key(imageId),
         confirmDismiss: (DismissDirection direction) {
@@ -354,6 +345,7 @@ class _ImageViewState extends State<ImageView> {
           print('on dismissed $direction');
         },
         child: Container(
+          color: Colors.black,
           child: Center(
               //child: Image.network(url),
               child: PhotoView(
