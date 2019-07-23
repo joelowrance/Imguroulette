@@ -1,9 +1,5 @@
 /*
 TODO:
-7.  when i click the close button (top) i want to go back to the list
-
-when i pull down i want to refresh my image list
-when i reach 1000 images, the next load will reload and take me to the top of the gird
 while i am swiping images, i want the grid to match the image i am looking at when i dismiss the overlay
 
 7.  Replace no data with spinny thing
@@ -14,6 +10,7 @@ while i am swiping images, i want the grid to match the image i am looking at wh
 
  */
 
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'package:random_string/random_string.dart';
@@ -60,13 +57,6 @@ class ImageService {
 
   int loadingCount = 0;
   Future loadThumbnails({int count = 50}) async {
-//    if (_rouletteImages.length > 250) {
-//      for (var wtf = 0; wtf < 100; wtf++) {
-//        print('wtf $wtf');
-//        _rouletteImages.removeAt(wtf);
-//      }
-//    }
-
     print('loading....');
     if (loadingCount > 3) {
       print('already loading');
@@ -256,7 +246,7 @@ class _MyHomePage extends State<MyHomePage> {
                               ),
                             );
                           } else {
-                            return Text('NO DATA');
+                            return CupertinoActivityIndicator(animating: true);
                           }
                         },
                       ),
@@ -286,15 +276,18 @@ class _ImageViewState extends State<ImageView> {
   String imageId;
   int index;
   String url = "";
+  PageController controller = new PageController();
 
   _ImageViewState(this.imageId, this.index) {
     url = imageService.mainUrl(imageId);
+    controller = new PageController(initialPage: index);
+    print('view state $index');
   }
 
   @override
   Widget build(BuildContext context) {
     print('https://i.imgur.com/$imageId/.png');
-    //String url = imageService.mainUrl(imageId);
+
     return Scaffold(
       appBar: AppBar(
         title: Text('View Image'),
@@ -306,54 +299,86 @@ class _ImageViewState extends State<ImageView> {
         ],
         leading: Container(),
       ),
-      body: Dismissible(
-        background: Container(color: Colors.black),
-        key: Key(imageId),
-        confirmDismiss: (DismissDirection direction) {
-          //not left on last image
-          //not right on first image
+      body: Container(
+        color: Colors.black,
+        child: PageView.builder(
+          controller: controller,
+          itemCount: imageService._rouletteImages.length,
+          itemBuilder: (context, index) {
+            return FutureBuilder<ImageResult>(
+              future: imageService.getNextImage(index),
+              builder: (context, snapshot) {
+                if (snapshot.hasData) {
+                  return Container(
+                    color: Colors.black,
+                    child: PhotoView(
+                      imageProvider: NetworkImage(
+                        imageService.mainUrl(snapshot.data.id),
+                      ),
+                    ),
+                  );
+                } else {
+                  return CupertinoActivityIndicator(
+                      radius: 50, animating: true);
+                }
+              },
+            );
 
-          Future<ImageResult> image;
-          int nextIndex;
-          if (direction == DismissDirection.startToEnd) {
-            if (index == 0) {
-              return Future.value(false);
-            }
-            nextIndex = index - 1;
-
-            print('next index minus $nextIndex');
-          }
-          //forward
-          if (direction == DismissDirection.endToStart) {
-            nextIndex = index + 1;
-            print('next index plus $nextIndex');
-          }
-
-          image = imageService.getNextImage(nextIndex);
-
-          image.then((result) {
-            setState(() {
-              imageId = result.id;
-              index = nextIndex;
-              url = imageService.mainUrl(result.id);
-            });
-          });
-
-          return Future.value(false);
-        },
-        onDismissed: (DismissDirection direction) {
-          print('on dismissed $direction');
-        },
-        child: Container(
-          color: Colors.black,
-          child: Center(
-              //child: Image.network(url),
-              child: PhotoView(
-            imageProvider: NetworkImage(url),
-          )),
-          padding: EdgeInsets.all(10),
+//          return FadeInImage(
+//            image: NetworkImage(imageService.mainUrl(sn))
+//          )
+          },
+          onPageChanged: (index) {},
         ),
       ),
+//      body: Dismissible(
+//        background: Container(color: Colors.black),
+//        key: Key(imageId),
+//        confirmDismiss: (DismissDirection direction) {
+//          //not left on last image
+//          //not right on first image
+//
+//          Future<ImageResult> image;
+//          int nextIndex;
+//          if (direction == DismissDirection.startToEnd) {
+//            if (index == 0) {
+//              return Future.value(false);
+//            }
+//            nextIndex = index - 1;
+//
+//            print('next index minus $nextIndex');
+//          }
+//          //forward
+//          if (direction == DismissDirection.endToStart) {
+//            nextIndex = index + 1;
+//            print('next index plus $nextIndex');
+//          }
+//
+//          image = imageService.getNextImage(nextIndex);
+//
+//          image.then((result) {
+//            setState(() {
+//              imageId = result.id;
+//              index = nextIndex;
+//              url = imageService.mainUrl(result.id);
+//            });
+//          });
+//
+//          return Future.value(false);
+//        },
+//        onDismissed: (DismissDirection direction) {
+//          print('on dismissed $direction');
+//        },
+//        child: Container(
+//          color: Colors.black,
+//          child: Center(
+//              //child: Image.network(url),
+//              child: PhotoView(
+//            imageProvider: NetworkImage(url),
+//          )),
+//          padding: EdgeInsets.all(10),
+//        ),
+//      ),
     );
   }
 }
