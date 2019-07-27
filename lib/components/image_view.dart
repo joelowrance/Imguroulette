@@ -51,9 +51,16 @@ class _ImageViewState extends State<ImageView> {
                 if (snapshot.hasData) {
                   return Container(
                     color: Colors.black,
-                    child: PhotoView(
-                      imageProvider: NetworkImage(
-                        ImageService.instance.mainUrl(snapshot.data.id),
+                    child: GestureDetector(
+                      onVerticalDragEnd: (e) {
+                        if (e.velocity.pixelsPerSecond.dy < -500) {
+                          Navigator.of(context).pop(null);
+                        }
+                      },
+                      child: PhotoView(
+                        imageProvider: NetworkImage(
+                          ImageService.instance.mainUrl(snapshot.data.id),
+                        ),
                       ),
                     ),
                   );

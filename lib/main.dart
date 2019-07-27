@@ -14,7 +14,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       home: MyHomePage(),
-      title: 'ImgurRoulette',
+      title: 'Imgurandom',
       theme: new ThemeData(
         primarySwatch: Colors.red,
       ),
@@ -23,7 +23,7 @@ class MyApp extends StatelessWidget {
 }
 
 class MyHomePage extends StatefulWidget {
-  final String title = 'Imgur Roulette';
+  final String title = 'Imgurandom';
   @override
   _MyHomePage createState() => _MyHomePage();
 }
