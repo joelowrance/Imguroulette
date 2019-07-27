@@ -26,6 +26,7 @@ dependencies:
   http: ^0.12.0+2
   random_string: ^1.1.0
   photo_view: ^0.4.2
+  percent_indicator: ^2.1.1
 
 
 dev_dependencies:
